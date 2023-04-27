@@ -41,4 +41,4 @@ non_endo_len = len(non_endorsing)
 endo_percent = (non_endo_len * 100) / residents_len
 
 print(f"The following nations are not endorsing {Delegate}: {non_endorsing} ({non_endo_len} nation(s))")
-print(f"Of all {residents_len} WA Nations in {region} there are {endo_percent:.2f}% WA nations endorsing delegate {Delegate}.")
+print(f"Of all {residents_len} WA Nations in {region} there are {endo_percent:.2f}% WA nations not endorsing delegate {Delegate}.")
