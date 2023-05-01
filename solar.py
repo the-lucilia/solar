@@ -4,7 +4,12 @@ membership rates as well as who is endorsing who etc.
 
 Patch Notes v0.2: Rewrote entire thing to make use of functions to allow different options for the user -M
 Patch Notes v0.1.2: Added functionality to show non-endorsers for officers -A
+
+Rat Fork 1D.5M.2023Y: tweaked command line interface. Added functionality for non-endorsers with [nation] tags.
+
+TODO: fix script breaking when a region or nation that doesn't exist is inputted.
 """
+
 import requests
 from xml.etree import ElementTree as et
 residents = []
@@ -113,13 +118,40 @@ def calc_non_nat(headers):
     nation_info = requests.get(f"https://www.nationstates.net/cgi-bin/api.cgi?nation={nation}&q=region+wa+endorsements",
                                headers=headers)
     nation_info_root = et.fromstring(nation_info.content)
-    if nation_info_root.find("UNSTATUS").text == "WA Member":
+    if nation_info_root.find("UNSTATUS").text != "Non-member":
+        # hazelrat ~ if you try = WA Member in that if statement, it'll say delegates aren't WA members. This is because
+        # there are three groups here- Non-member, WA Member, and Delegate. So != Non-member includes both delegates
+        # and regular members.
         nation_region = nation_info_root.find("REGION").text
         region_info(headers, "_", nation_region)
         wa_length = len(wa_nations)
         nation_endorsements = nation_info_root.find("ENDORSEMENTS").text
         non_endorsers = [nation for nation in wa_nations if nation not in nation_endorsements]
         non_endo_len = len(non_endorsers)
+        non_endo_percent = non_endo_len * 100 / wa_length
+        print(f"The following nations are not endorsing {nation}: {non_endorsers} ({non_endo_len} nation(s))")
+        print(f"Of the total {wa_length} nations in {nation_region} there are {non_endo_percent:.2f}% nations not "
+              f"endorsing {nation}")
+    else:
+        print(f"{nation} is not a member of the World Assembly.")
+
+
+def calc_non_nat_tagged(headers):  # hazelrat ~ version of calc_non_tat including [nation] tags.
+    nation = str(input("Please enter the target nation: ")).lower().replace(" ", "_")
+    nation_info = requests.get(f"https://www.nationstates.net/cgi-bin/api.cgi?nation={nation}&q=region+wa+endorsements",
+                               headers=headers)
+    nation_info_root = et.fromstring(nation_info.content)
+    if nation_info_root.find("UNSTATUS").text != "Non-member":
+        nation_region = nation_info_root.find("REGION").text
+        region_info(headers, "_", nation_region)
+        wa_length = len(wa_nations)
+        nation_endorsements = nation_info_root.find("ENDORSEMENTS").text
+        # hazelrat ~ below edited to include [nation] tags
+        non_endorsers = [f"[nation]{nation}[/nation]" for nation in wa_nations if nation not in nation_endorsements]
+        non_endo_len = len(non_endorsers)  # hazelrat ~ NOTE: if you put this after the next line, it breaks.
+        # hazelrat ~ must figure out a better solution to removing the ' thingies
+        # hazelrat ~ below removes the ' between nation names. janky solution, breaks len()?
+        non_endorsers = ", ".join(non_endorsers)
         non_endo_percent = non_endo_len * 100 / wa_length
         print(f"The following nations are not endorsing {nation}: {non_endorsers} ({non_endo_len} nation(s))")
         print(f"Of the total {wa_length} nations in {nation_region} there are {non_endo_percent:.2f}% nations not "
@@ -141,6 +173,7 @@ def display_options():
     # hazelrat ~ messed with formatting in a few places to make it more personally aesthetically pleasing
     print("\nNER: Find non-endorsers within the region for the delegate and the regional officers.")
     print(f"NEN: Find non-endorsers within the region for the target nation.")
+    print(f"NENT: Find non-endorsers within the region for the target nation, with [nation] tags.")
     print(f"NWR: Retrieve a list of all non-WA nations in a target region.")
     print(f"OPT: Restate the options.")
     print(f"EXIT: Exit the application.\n")
@@ -168,6 +201,8 @@ def main():
                 region_info(headers, user_choice)
             case "nen":
                 calc_non_nat(headers)
+            case "nent":
+                calc_non_nat_tagged(headers)
             case "nwr":
                 region_info(headers, user_choice)
             case "opt":
