@@ -4,7 +4,10 @@ membership rates as well as who is endorsing who etc.
 
 Patch Notes v0.2: Rewrote entire thing to make use of functions to allow different options for the user -M
 Patch Notes v0.1.2: Added functionality to show non-endorsers for officers -A
+
+Malphe Fork 1D.5M.2023Y: tweaked command line interface. Added functionality for non-endorsers with [nation] tags.
 """
+
 import requests
 from xml.etree import ElementTree as et
 residents = []
@@ -113,7 +116,10 @@ def calc_non_nat(headers):
     nation_info = requests.get(f"https://www.nationstates.net/cgi-bin/api.cgi?nation={nation}&q=region+wa+endorsements",
                                headers=headers)
     nation_info_root = et.fromstring(nation_info.content)
-    if nation_info_root.find("UNSTATUS").text == "WA Member":
+    if nation_info_root.find("UNSTATUS").text != "Non-member":
+        # If you try = WA Member in that if statement, it'll say delegates aren't WA members. This is because
+        # there are three groups here- Non-member, WA Member, and Delegate. So != Non-member includes both delegates
+        # and regular members. - Malphe
         nation_region = nation_info_root.find("REGION").text
         region_info(headers, "_", nation_region)
         wa_length = len(wa_nations)
@@ -125,7 +131,30 @@ def calc_non_nat(headers):
         print(f"Of the total {wa_length} nations in {nation_region} there are {non_endo_percent:.2f}% nations not "
               f"endorsing {nation}")
     else:
-        print(f"{nation} is not a member of the WA!")
+        print(f"{nation} is not a member of the World Assembly.")
+
+
+def calc_non_nat_tagged(headers):  # hazelrat ~ version of calc_non_tat including [nation] tags.
+    nation = str(input("Please enter the target nation: ")).lower().replace(" ", "_")
+    nation_info = requests.get(f"https://www.nationstates.net/cgi-bin/api.cgi?nation={nation}&q=region+wa+endorsements",
+                               headers=headers)
+    nation_info_root = et.fromstring(nation_info.content)
+    if nation_info_root.find("UNSTATUS").text != "Non-member":
+        nation_region = nation_info_root.find("REGION").text
+        region_info(headers, "_", nation_region)
+        wa_length = len(wa_nations)
+        nation_endorsements = nation_info_root.find("ENDORSEMENTS").text
+        # Below edited to include [nation] tags - Malphe
+        non_endorsers = [f"[nation]{nation}[/nation]" for nation in wa_nations if nation not in nation_endorsements]
+        non_endo_len = len(non_endorsers)  # NOTE: if you put this after the next line, it breaks.
+        # Below removes the apostrophe between nation names. janky solution, should find a better one - Malphe
+        non_endorsers = ", ".join(non_endorsers)
+        non_endo_percent = non_endo_len * 100 / wa_length
+        print(f"The following nations are not endorsing {nation}: {non_endorsers} ({non_endo_len} nation(s))")
+        print(f"Of the total {wa_length} nations in {nation_region} there are {non_endo_percent:.2f}% nations not "
+              f"endorsing {nation}")
+    else:
+        print(f"{nation} is not a member of the World Assembly.")
 
 
 def calc_non_wa(region):
@@ -138,17 +167,20 @@ def calc_non_wa(region):
 
 
 def display_options():
-    print("Find non-endorsers within the region for delegate and regional officers (NER)")
-    print(f"Find non-endorsers within the region for the target nation (NEN)")
-    print(f"Get a list of all non-WA nations in a target region (NWR)")
-    print(f"Restate the options (OPT)")
-    print(f"And exit will exit (exit)!")
+    # Messed with formatting in a few places to make it more personally aesthetically pleasing - Malphe
+    print("\nNER: Find non-endorsers within the region for the delegate and the regional officers.")
+    print(f"NEN: Find non-endorsers within the region for the target nation.")
+    print(f"NENT: Find non-endorsers within the region for the target nation, with [nation] tags.")
+    print(f"NWR: Retrieve a list of all non-WA nations in a target region.")
+    print(f"OPT: Restate the options.")
+    print(f"EXIT: Exit the application.\n")
 
 
 def main():
+    print("Welcome to Solar, a NationStates diagnostic tool.\n")
     # User agent input
     user_input = (
-        input("Please enter your main nation for the User-Agent: ")
+        input("Please enter your main nation for the user agent: ")
         .lower()
         .replace(" ", "_")
     )
@@ -157,25 +189,26 @@ def main():
         "User-Agent": f"Project Solar requesting region and nation information, deved by nation=Hesskin_Empire "
                       f"and in use by {user_input}"
     }
-    print(f"Hello, {user_input}! Thank you for your interest in solar! There are a few things you can do with solar so"
-          f"please choose one from the list: ")
+    print(f"\nUser agent set to {user_input}. Input functionalities are listed below.  ")
     display_options()
-    user_choice = str(input("What would you like to do? ")).lower()
+    user_choice = str(input("Enter input: ")).lower()
     while user_choice != 'exit':
         match user_choice:
             case "ner":
                 region_info(headers, user_choice)
             case "nen":
                 calc_non_nat(headers)
+            case "nent":
+                calc_non_nat_tagged(headers)
             case "nwr":
                 region_info(headers, user_choice)
             case "opt":
                 display_options()
             case _:
-                print(f"I'm sorry, {user_input} but {user_choice} is not a valid choice. Please try again!")
-        user_choice = str(input("What would you like to do? ")).lower()
+                print(f"{user_choice} is not a valid input, please try again.")
+        user_choice = str(input("Enter input: ")).lower()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # Mysterious boilerplate, not to be messed with - Malphe
     main()
-    input("Press enter to exit. . .")
+    input("Press any key to exit...")
