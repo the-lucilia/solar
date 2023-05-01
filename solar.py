@@ -5,9 +5,7 @@ membership rates as well as who is endorsing who etc.
 Patch Notes v0.2: Rewrote entire thing to make use of functions to allow different options for the user -M
 Patch Notes v0.1.2: Added functionality to show non-endorsers for officers -A
 
-Rat Fork 1D.5M.2023Y: tweaked command line interface. Added functionality for non-endorsers with [nation] tags.
-
-TODO: fix script breaking when a region or nation that doesn't exist is inputted.
+Malphe Fork 1D.5M.2023Y: tweaked command line interface. Added functionality for non-endorsers with [nation] tags.
 """
 
 import requests
@@ -119,9 +117,9 @@ def calc_non_nat(headers):
                                headers=headers)
     nation_info_root = et.fromstring(nation_info.content)
     if nation_info_root.find("UNSTATUS").text != "Non-member":
-        # hazelrat ~ if you try = WA Member in that if statement, it'll say delegates aren't WA members. This is because
+        # If you try = WA Member in that if statement, it'll say delegates aren't WA members. This is because
         # there are three groups here- Non-member, WA Member, and Delegate. So != Non-member includes both delegates
-        # and regular members.
+        # and regular members. - Malphe
         nation_region = nation_info_root.find("REGION").text
         region_info(headers, "_", nation_region)
         wa_length = len(wa_nations)
@@ -146,11 +144,10 @@ def calc_non_nat_tagged(headers):  # hazelrat ~ version of calc_non_tat includin
         region_info(headers, "_", nation_region)
         wa_length = len(wa_nations)
         nation_endorsements = nation_info_root.find("ENDORSEMENTS").text
-        # hazelrat ~ below edited to include [nation] tags
+        # Below edited to include [nation] tags - Malphe
         non_endorsers = [f"[nation]{nation}[/nation]" for nation in wa_nations if nation not in nation_endorsements]
-        non_endo_len = len(non_endorsers)  # hazelrat ~ NOTE: if you put this after the next line, it breaks.
-        # hazelrat ~ must figure out a better solution to removing the ' thingies
-        # hazelrat ~ below removes the ' between nation names. janky solution, breaks len()?
+        non_endo_len = len(non_endorsers)  # NOTE: if you put this after the next line, it breaks.
+        # Below removes the apostrophe between nation names. janky solution, should find a better one - Malphe
         non_endorsers = ", ".join(non_endorsers)
         non_endo_percent = non_endo_len * 100 / wa_length
         print(f"The following nations are not endorsing {nation}: {non_endorsers} ({non_endo_len} nation(s))")
@@ -170,7 +167,7 @@ def calc_non_wa(region):
 
 
 def display_options():
-    # hazelrat ~ messed with formatting in a few places to make it more personally aesthetically pleasing
+    # Messed with formatting in a few places to make it more personally aesthetically pleasing - Malphe
     print("\nNER: Find non-endorsers within the region for the delegate and the regional officers.")
     print(f"NEN: Find non-endorsers within the region for the target nation.")
     print(f"NENT: Find non-endorsers within the region for the target nation, with [nation] tags.")
@@ -212,6 +209,6 @@ def main():
         user_choice = str(input("Enter input: ")).lower()
 
 
-if __name__ == "__main__":  # hazelrat ~ this is apparently a boilerplate, I do not understand it at all
+if __name__ == "__main__":  # Mysterious boilerplate, not to be messed with - Malphe
     main()
     input("Press any key to exit...")
