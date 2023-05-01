@@ -1,5 +1,5 @@
 # SOLAR - NS
-<h2>Developed by Ghazi-Rahman Ammar and Volstrostia</h2><br>
+<h3>Developed by Ghazi-Rahman Ammar, Volstrostia, and Malphe II</h3><br>
 
 Solar is a small tool to get a list of:<br>
 -WA Nations not endorsing the Delegate and Officers of a target region.<br>
