@@ -72,4 +72,5 @@ for officer in Officers:
 
     print(f"The following nations are not endorsing {officerNation}: {non_endorsing} ({non_endo_len} nation(s))")
     print(f"Of all {residents_len} WA Nations in {region} there are {endo_percent:.2f}% WA nations not endorsing officer {officerNation}.")
+    print()
 
