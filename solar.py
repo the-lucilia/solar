@@ -125,7 +125,7 @@ def calc_non_nat(headers):
         print(f"Of the total {wa_length} nations in {nation_region} there are {non_endo_percent:.2f}% nations not "
               f"endorsing {nation}")
     else:
-        print(f"{nation} is not a member of the WA!")
+        print(f"{nation} is not a member of the World Assembly.")
 
 
 def calc_non_wa(region):
@@ -138,17 +138,19 @@ def calc_non_wa(region):
 
 
 def display_options():
-    print("Find non-endorsers within the region for delegate and regional officers (NER)")
-    print(f"Find non-endorsers within the region for the target nation (NEN)")
-    print(f"Get a list of all non-WA nations in a target region (NWR)")
-    print(f"Restate the options (OPT)")
-    print(f"And exit will exit (exit)!")
+    # hazelrat ~ messed with formatting in a few places to make it more personally aesthetically pleasing
+    print("\nNER: Find non-endorsers within the region for the delegate and the regional officers.")
+    print(f"NEN: Find non-endorsers within the region for the target nation.")
+    print(f"NWR: Retrieve a list of all non-WA nations in a target region.")
+    print(f"OPT: Restate the options.")
+    print(f"EXIT: Exit the application.\n")
 
 
 def main():
+    print("Welcome to Solar, a NationStates diagnostic tool.\n")
     # User agent input
     user_input = (
-        input("Please enter your main nation for the User-Agent: ")
+        input("Please enter your main nation for the user agent: ")
         .lower()
         .replace(" ", "_")
     )
@@ -157,10 +159,9 @@ def main():
         "User-Agent": f"Project Solar requesting region and nation information, deved by nation=Hesskin_Empire "
                       f"and in use by {user_input}"
     }
-    print(f"Hello, {user_input}! Thank you for your interest in solar! There are a few things you can do with solar so"
-          f"please choose one from the list: ")
+    print(f"\nUser agent set to {user_input}. Input functionalities are listed below.  ")
     display_options()
-    user_choice = str(input("What would you like to do? ")).lower()
+    user_choice = str(input("Enter input: ")).lower()
     while user_choice != 'exit':
         match user_choice:
             case "ner":
@@ -172,10 +173,10 @@ def main():
             case "opt":
                 display_options()
             case _:
-                print(f"I'm sorry, {user_input} but {user_choice} is not a valid choice. Please try again!")
-        user_choice = str(input("What would you like to do? ")).lower()
+                print(f"{user_choice} is not a valid input, please try again.")
+        user_choice = str(input("Enter input: ")).lower()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # hazelrat ~ this is apparently a boilerplate, I do not understand it at all
     main()
-    input("Press enter to exit. . .")
+    input("Press any key to exit...")
