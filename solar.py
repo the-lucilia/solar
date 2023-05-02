@@ -2,6 +2,7 @@
 Project Solar! This is a basic data analyst script meant to allow the user to gather information on NS regions' WA -
 membership rates as well as who is endorsing who etc.
 
+Patch Notes v0.2.3: Added Try/Except to check if there are no WA nations
 Patch Notes v0.2.2: Merged Malphe fork, did input validation for region/nation that are not valid
 Patch Notes v0.2: Rewrote entire thing to make use of functions to allow different options for the user -M
 Patch Notes v0.1.2: Added functionality to show non-endorsers for officers -A
@@ -21,39 +22,42 @@ def region_info(headers, choice, region=None):
     if region is None:
         region = str(input("Please enter the target region: ")).lower().replace(" ", "_")
     # Get all wa nations
-    wa_residents = requests.get(
-        f"https://www.nationstates.net/cgi-bin/api.cgi?region={region}&q=wanations",
-        headers=headers,
-    )
-    region_status = wa_residents.status_code
-    if region_status != 200:
-        print(f"Error: {region_status}")
-    else:
-        wa_nations_root = et.fromstring(wa_residents.content)
-        wa = wa_nations_root.find("UNNATIONS").text.split(",")
-        # Appends the global scope list with all WA nations!
-        for nat in wa:
-            wa_nations.append(nat)
-
-        # Gets same info as above but for all nations, not just WA!
-        all_residents = requests.get(
-            f"https://www.nationstates.net/cgi-bin/api.cgi?region={region}&q=nations",
+    try:
+        wa_residents = requests.get(
+            f"https://www.nationstates.net/cgi-bin/api.cgi?region={region}&q=wanations",
             headers=headers,
         )
-        all_residents_root = et.fromstring(all_residents.content)
-        ar = all_residents_root.find("NATIONS").text.split(":")
-        for nat in ar:
-            residents.append(nat)
+        region_status = wa_residents.status_code
+        if region_status != 200:
+            print(f"Error: {region_status}")
+        else:
+            wa_nations_root = et.fromstring(wa_residents.content)
+            wa = wa_nations_root.find("UNNATIONS").text.split(",")
+            # Appends the global scope list with all WA nations!
+            for nat in wa:
+                wa_nations.append(nat)
 
-        match choice:
-            case "ner":
-                print("For Non-Endorsing Delegate and Officers:")
-                calc_non_endos(headers, region)
-            case "nwr":
-                print("For Non-WA in Region:")
-                calc_non_wa(region)
-            case _:
-                print("For Non-Endorsing Nation:")
+            # Gets same info as above but for all nations, not just WA!
+            all_residents = requests.get(
+                f"https://www.nationstates.net/cgi-bin/api.cgi?region={region}&q=nations",
+                headers=headers,
+            )
+            all_residents_root = et.fromstring(all_residents.content)
+            ar = all_residents_root.find("NATIONS").text.split(":")
+            for nat in ar:
+                residents.append(nat)
+
+            match choice:
+                case "ner":
+                    print("For Non-Endorsing Delegate and Officers:")
+                    calc_non_endos(headers, region)
+                case "nwr":
+                    print("For Non-WA in Region:")
+                    calc_non_wa(region)
+                case _:
+                    print("For Non-Endorsing Nation:")
+    except:
+        print(f"{region} has no WA nations.")
 
 
 def calc_non_endos(headers, region):
