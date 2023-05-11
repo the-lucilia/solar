@@ -13,11 +13,25 @@ Malphe Fork 1D.5M.2023Y: tweaked command line interface. Added functionality for
 import requests
 from xml.etree import ElementTree as et
 from datetime import datetime as dt
+#from itertools import batched
+
+def batched(iterable , max_batch_size: int):
+    """ Batches an iterable into lists of given maximum size, yielding them one by one. """
+    batch = []
+    for element in iterable:
+        batch.append(element)
+        if len(batch) >= max_batch_size:
+            yield batch
+            batch = []
+    if len(batch) > 0:
+        yield batch
+
 residents = []
 wa_nations = []
 
 
 def region_info(headers, choice, region=None):
+    post = ""
     residents.clear()
     wa_nations.clear()
     if region is None:
@@ -36,6 +50,7 @@ def region_info(headers, choice, region=None):
             wa_nations_root = et.fromstring(wa_residents.content)
             wa = wa_nations_root.find("UNNATIONS").text.split(",")
             # Appends the global scope list with all WA nations!
+
             for nat in wa:
                 wa_nations.append(nat)
 
@@ -49,16 +64,23 @@ def region_info(headers, choice, region=None):
             for nat in ar:
                 residents.append(nat)
 
-            match choice:
+            match choice.lower():
                 case "ner":
-                    calc_non_endos(headers, region)
+                    post = calc_non_endos(headers, region)
                 case "nwr":
-                    calc_non_wa(headers, region)
-    except:
+                    post = calc_non_wa(headers, region)
+
+            return post
+
+    except Exception as e:
+        print(e)
         print(f"{region} has no WA nations.")
+        return f"No WA nations in {region}!"
 
 
 def calc_non_endos(headers, region):
+    #print("DEBUG: calc non endo")
+    region = region.replace(" ","_").lower() #Sanitize
     residents_len = len(wa_nations)
     if residents_len <= 0:
         region_info(headers, "ner", region)
@@ -78,7 +100,7 @@ def calc_non_endos(headers, region):
         officers = delegate_name_root.find("OFFICERS").findall("OFFICER")
         # Endo info
         delegate_endos = requests.get(
-            f"https://www.nationstates.net/cgi-bin/api.cgi?nation={delegate}&q=endorsements",
+            f"https://www.nationstates.net/cgi-bin/api.cgi?nation={delegate.replace(' ','_').lower()}&q=endorsements",
             headers=headers,
         )
         delegate_endos_root = et.fromstring(delegate_endos.content)
@@ -94,51 +116,58 @@ def calc_non_endos(headers, region):
                 f"are not endorsing delegate {delegate}.\n")
             f.write("\n")
         # Runs through all the officers
-        for officer in officers:
-            officer_nation = officer.find("NATION").text
-            if officer_nation == delegate:
-                continue  # Skip the delegate
+            for officer in officers:
+                officer_nation = officer.find("NATION").text
+                if officer_nation == delegate:
+                    continue  # Skip the delegate
 
-            officer_endos = requests.get(
-                f"https://www.nationstates.net/cgi-bin/api.cgi?nation={officer_nation}&q=wa+endorsements",
-                headers=headers)
-            officer_endos_root = et.fromstring(officer_endos.content)
-            if officer_endos_root.find("UNSTATUS").text == "Non-member":
-                f.write(f"{officer_nation} is not in the WA!")
+                officer_endos = requests.get(
+                    f"https://www.nationstates.net/cgi-bin/api.cgi?nation={officer_nation.replace(' ','_').lower()}&q=wa+endorsements",
+                    headers=headers)
+                officer_endos_root = et.fromstring(officer_endos.content)
+                if officer_endos_root.find("UNSTATUS").text == "Non-member":
+                    f.write(f"{officer_nation} is not in the WA!")
+                    f.write("\n")
+                    continue
+
+                if officer_endos_root.find("ENDORSEMENTS").text and "," in officer_endos_root.find("ENDORSEMENTS").text:
+                    endorsements = officer_endos_root.find("ENDORSEMENTS").text.split(",")
+                else:
+                    f.write(f"Error: No endorsements for {officer_nation}")
+                    f.write("\n")
+                    continue
+
+                endorsers = [endorsement for endorsement in endorsements]
+                non_endorsing = [nation for nation in wa_nations if nation not in endorsers and nation != officer_nation]
+                non_endo_len = len(non_endorsing)
+                endo_percent = (non_endo_len * 100) / residents_len
+
+                f.write(f"The following nations are not endorsing {officer_nation}: {non_endorsing} ({non_endo_len} nation(s))\n")
+                f.write(
+                    f"Of all {residents_len} WA Nations in {region} there are {endo_percent:.2f}% WA nations not "
+                    f"endorsing officer {officer_nation}.\n")
                 f.write("\n")
-                continue
-
-            if officer_endos_root.find("ENDORSEMENTS").text and "," in officer_endos_root.find("ENDORSEMENTS").text:
-                endorsements = officer_endos_root.find("ENDORSEMENTS").text.split(",")
-            else:
-                f.write(f"Error: No endorsements for {officer_nation}")
-                f.write("\n")
-                continue
-
-            endorsers = [endorsement for endorsement in endorsements]
-            non_endorsing = [nation for nation in wa_nations if nation not in endorsers and nation != officer_nation]
-            non_endo_len = len(non_endorsing)
-            endo_percent = (non_endo_len * 100) / residents_len
-
-            f.write(f"The following nations are not endorsing {officer_nation}: {non_endorsing} ({non_endo_len} nation(s))\n")
-            f.write(
-                f"Of all {residents_len} WA Nations in {region} there are {endo_percent:.2f}% WA nations not "
-                f"endorsing officer {officer_nation}.\n")
-            f.write("\n")
         post = "Thank you! The results are found in a file with today's date in the same directory as your Solar app!"
         return post
+    return "Error - could not retrieve results"
 
 
 def calc_non_nat(headers, nation=None):
+    #print("DEBUG: calc non nat")
     if nation is None:
         nation = str(input("Please enter the target nation: ")).lower().replace(" ", "_")
     nation_info = requests.get(f"https://www.nationstates.net/cgi-bin/api.cgi?nation={nation}&q=region+wa+endorsements",
                                headers=headers)
     nation_status = nation_info.status_code
+    post = ""
+
     if nation_status != 200:
         print(f"Error: {nation_status}")
+        return ""
+
     else:
         nation_info_root = et.fromstring(nation_info.content)
+
         if nation_info_root.find("UNSTATUS").text != "Non-member":
             # If you try = WA Member in that if statement, it'll say delegates aren't WA members. This is because
             # there are three groups here- Non-member, WA Member, and Delegate. So != Non-member includes both delegates
@@ -150,24 +179,34 @@ def calc_non_nat(headers, nation=None):
             non_endorsers = [nation for nation in wa_nations if nation not in nation_endorsements]
             non_endo_len = len(non_endorsers)
             non_endo_percent = non_endo_len * 100 / wa_length
-            with open(f"{dt.now().date().isoformat()}-{nation}.txt", "a") as f:
-                f.write(f"The following nations are not endorsing {nation}: {non_endorsers} ({non_endo_len} nation(s))\n")
+            with open(f"{dt.now().date().isoformat()}-{nation.lower().replace(' ','_')}.txt", "a") as f:
+                f.write(f"The following {non_endo_len} nations are not endorsing {nation}: \n") # {non_endorsers} ({non_endo_len} nation(s))\n")
+           #     f.write(f"The following nations are not endorsing {nation}: ({non_endo_len} nation(s))\n")
+                for tg_batch in batched(non_endorsers,8):
+                    f.write(", ".join(tg_batch))
+                    f.write("\n")
+
                 f.write(f"Of the total {wa_length} nations in {nation_region} there are {non_endo_percent:.2f}% "
                         f"nations not endorsing {nation}\n")
             post = "Thank you! The results are found in a file with today's date in the same directory as your Solar app!"
         else:
             post = f"{nation} is not a member of the World Assembly."
+
         return post
+    return "Error - could not retrieve results"
 
 
 def calc_non_nat_tagged(headers, nation=None):  # hazelrat ~ version of calc_non_tat including [nation] tags.
+#    print("DEBUG: calc non nat tag")
+    post = ""
     if nation is None:
         nation = str(input("Please enter the target nation: ")).lower().replace(" ", "_")
-    nation_info = requests.get(f"https://www.nationstates.net/cgi-bin/api.cgi?nation={nation}&q=region+wa+endorsements",
+    nation_info = requests.get(f"https://www.nationstates.net/cgi-bin/api.cgi?nation={nation.lower().replace(' ','_')}&q=region+wa+endorsements",
                                headers=headers)
     nation_status = nation_info.status_code
     if nation_status != 200:
         print(f"Error: {nation_status}")
+        return "Error"
     else:
         nation_info_root = et.fromstring(nation_info.content)
         if nation_info_root.find("UNSTATUS").text != "Non-member":
@@ -178,11 +217,17 @@ def calc_non_nat_tagged(headers, nation=None):  # hazelrat ~ version of calc_non
             # Below edited to include [nation] tags - Malphe
             non_endorsers = [f"[nation]{nation}[/nation]" for nation in wa_nations if nation not in nation_endorsements]
             non_endo_len = len(non_endorsers)  # NOTE: if you put this after the next line, it breaks.
+
+#            tg_batches = batched(non_endorsers, 8)
+
             # Below removes the apostrophe between nation names. janky solution, should find a better one - Malphe
             non_endorsers = ", ".join(non_endorsers)
             non_endo_percent = non_endo_len * 100 / wa_length
-            with open(f"{dt.now().date().isoformat()}-{nation}.txt", "a") as f:
-                f.write(f"The following nations are not endorsing {nation}: {non_endorsers} ({non_endo_len} nation(s))\n")
+            with open(f"{dt.now().date().isoformat()}-{nation.lower().replace(' ','_')}.txt", "a") as f:
+                f.write(f"The following {non_endo_len} nations are not endorsing {nation}: \n") # {non_endorsers} ({non_endo_len} nation(s))\n")
+                f.write(non_endorsers)
+                f.write("\n")
+
                 f.write(f"Of the total {wa_length} nations in {nation_region} there are {non_endo_percent:.2f}% "
                         f"nations not endorsing {nation}\n")
             post = "Thank you! The results are found in a file with today's date in the same directory as your Solar app!"
@@ -192,6 +237,7 @@ def calc_non_nat_tagged(headers, nation=None):  # hazelrat ~ version of calc_non
 
 
 def calc_non_wa(headers, region):
+    #print("DEBUG: calc non wa")
     res_length = len(residents)
     if res_length <= 0:
         region_info(headers, "nwr", region)
@@ -199,7 +245,7 @@ def calc_non_wa(headers, region):
     non_wa = [nat for nat in residents if nat not in wa_nations]
     non_length = len(non_wa)
     non_percent = non_length * 100 / res_length
-    with open(f"{dt.now().date().isoformat()}-{region}.txt", "a") as f:
+    with open(f"{dt.now().date().isoformat()}-{region.lower().replace(' ','_')}.txt", "a") as f:
         f.write(f"The following nations are not in the WA in {region}: {non_wa} ({non_length} nation(s))\n")
         f.write(f"Of all {res_length} nations in {region} there are {non_percent:.2f}% nations not in the WA\n")
     post = "Thank you! The results are found in a file with today's date in the same directory as your Solar app!"
